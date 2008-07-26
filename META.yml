@@ -1,7 +1,7 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         Geo-Sun
-version:      0.01
+version:      0.02
 version_from: lib/Geo/Sun.pm
 installdirs:  site
 requires:
@@ -9,12 +9,15 @@ requires:
     DateTime:                      0
     Geo::Constants:                0
     Geo::Ellipsoids:               0
+    Geo::Forward:                  0.05
     Geo::Functions:                0
     GPS::Point:                    0
     strict:                        0
     Test::More:                    0
+    Test::Number::Delta:           0
     Test::Simple:                  0.44
     vars:                          0
+    warnings:                      0
 
 distribution_type: module
 generated_by: ExtUtils::MakeMaker version 6.30
