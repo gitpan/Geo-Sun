@@ -1,4 +1,11 @@
 #!/usr/bin/perl
+
+=head1 NAME
+
+perl-Geo-Sun-Today.cgi - Geo::Sun simple example
+
+=cut
+
 use strict;
 use warnings;
 use DateTime;

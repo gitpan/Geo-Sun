@@ -7,11 +7,10 @@ use Geo::Constants qw{PI};
 use Geo::Functions qw{deg_rad};
 use Geo::Ellipsoids;
 use GPS::Point;
-use Geo::Forward 0.05; #GPS::Point->distance for array context
 
 BEGIN {
     use vars qw($VERSION);
-    $VERSION     = '0.02';
+    $VERSION     = '0.04';
 }
 
 =head1 NAME
@@ -21,11 +20,10 @@ Geo::Sun - Calculates the Geodetic Position of the Sun over the Surface of the E
 =head1 SYNOPSIS
 
   use Geo::Sun;
-  my $gs=Geo::Sun->new;
+  my $gs=Geo::Sun->new;                              #isa Geo::Sun
   my $point=$gs->set_datetime(DateTime->now)->point; #Full OO interface
-  my $point=$gs->point_dt(DateTime->now);            #Old interface
+  printf "Point isa %s\n", ref($point);              #isa GPS::Point
   printf "Latitude: %s, Longitude: %s\n", $point->latlon;
-  printf "Point isa %s\n", ref($point);              #GPS::Point
 
 =head1 DESCRIPTION
 
@@ -37,6 +35,7 @@ The Geo::Sun package is a wrapper around L<Astro::Coord::ECI::Sun> with a user f
 
   use Geo::Sun;
   my $gs=Geo::Sun->new;
+  printf "Lat: %s, Lon: %s\n", $gs->point->latlon;
 
 =head1 CONSTRUCTOR
 
@@ -66,11 +65,19 @@ sub initialize {
     unless ref($self->sun) eq "Astro::Coord::ECI::Sun";
   $self->ellipsoid(Geo::Ellipsoids->new)
     unless ref($self->ellipsoid) eq "Geo::Ellipsoids";
-  $self->datetime(DateTime->now)
-    unless defined $self->datetime;
+  if (defined $self->datetime) {
+    $self->point_recalculate; #supports $gs->new(datetime=>$dt)
+  } else {
+    $self->datetime(DateTime->now)
+  }
+  $self->initialize2; #a hook if you need it
+  return $self;
 }
 
-=head1 METHODS (POINT)
+sub initialize2 {
+  my $self=shift;
+  return $self;
+}
 
 =head2 point
 
@@ -83,32 +90,18 @@ Returns a GPS::Point for the location of the sun at the current datetime.
 
 sub point {
   my $self=shift;
-  my $epoch=$self->datetime->clone->set_time_zone("UTC")->epoch;
-  my ($psi, $lambda, $h) = $self->sun->universal($epoch)->geodetic;
-  #speed is 2 pi distance from the polar axis to the surface
-  #of the earth at latitude divided by 1 day (m/s)
-  my $speed=2 * PI() * $self->ellipsoid->n_rad($psi) * cos($psi) / 24 / 60 / 60;
-  return GPS::Point->new(
-         time        => $self->sun->universal, #float seconds unix epoch (UTC)
-         lat         => deg_rad($psi),         #signed decimal degrees
-         lon         => deg_rad($lambda),      #signed decimal degrees
-         alt         => $h * 1000,             #meters above the WGS-84 ellipsoid
-         speed       => $speed, #is this right #meters/second (over ground)
-         heading     => 270,  #need real value #degrees clockwise from North
-         mode        => 3,                     #GPS mode 3-D
-         tag         => "Geo::Sun",            #Name of the GPS message for data
-       ); 
+  return $self->{'point'};
 }
 
 =head2 point_dt
 
 Set the current datetime and returns a GPS::Point
 
-  my $point=$gs->point_dt(DateTime->now);
+  my $point=$gs->point_dt($datetime);
 
 Implemented as
 
-  my $point=$gs->set_datetime(DateTime->now)->point;
+  my $point=$gs->set_datetime($datetime)->point;
 
 =cut
 
@@ -119,13 +112,16 @@ sub point_dt {
 
 =head2 datetime
 
-Sets or returns the current datetime which is a DateTime object. The default is DateTime->now.
+Sets or returns the current datetime which is a L<DateTime> object. The default is DateTime->now.
 
 =cut
 
 sub datetime {
   my $self = shift;
-  $self->{"datetime"}=shift if @_;
+  if (@_) {
+    $self->{"datetime"}=shift;
+    $self->point_recalculate;
+  }
   return $self->{"datetime"};
 }
 
@@ -141,45 +137,45 @@ sub set_datetime {
   return $self;
 }
 
-=head1 METHODS (BEARING)
+=head1 METHODS (INTERNAL)
 
-=head2 bearing
+=head2 point_recalculate
 
-Returns the bearing from the station to the Sun.
-
-=cut
- 
-sub bearing {
-  my $self=shift;
-  my (undef, $baz, undef) = $self->point->distance($self->station);
-  return $baz;
-}
-
-=head2 station
-
-Sets or returns station. Station must be a valid point argument for L<GSP::Point> distance method.
+Recalculates the point when the DateTime is changed.
 
 =cut
 
-sub station {
+sub point_recalculate {
   my $self=shift;
-  $self->{"station"}=shift if @_;
-  return $self->{"station"};
-}
-
-=head2 set_station
-
-Sets station returns self
-
-=cut
-
-sub set_station {
-  my $self=shift;
-  $self->station(@_) if @_;
+  my $epoch=$self->datetime->clone->set_time_zone("UTC")->epoch;
+  my ($psi, $lambda, $h) = $self->sun->universal($epoch)->geodetic;
+  #speed is 2 pi distance from the polar axis to the surface
+  #of the earth at latitude divided by 1 day (m/s)
+  my $speed=2 * PI() * $self->ellipsoid->n_rad($psi) * cos($psi) / 24 / 60 / 60;
+  $self->{'point'}=GPS::Point->new(
+    time        => $self->sun->universal, #float seconds unix epoch (UTC)
+    lat         => deg_rad($psi),         #signed decimal degrees
+    lon         => deg_rad($lambda),      #signed decimal degrees
+    alt         => $h * 1000,             #meters above the WGS-84 ellipsoid
+    speed       => $speed, #is this right #meters/second (over ground)
+    heading     => 270,  #need real value #degrees clockwise from North
+    mode        => 3,                     #GPS mode 3-D
+    tag         => "Geo::Sun",            #Name of the GPS message for data
+  ); 
+  $self->point_onchange; #a hook if you need it.
   return $self;
 }
 
-=head1 METHODS (INTERNAL)
+=head2 point_onchange
+
+Override this method if you want to calculate something when the point changes
+
+=cut
+
+sub point_onchange {
+  my $self=shift;
+  return $self;
+}
 
 =head2 sun
 

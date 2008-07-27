@@ -11,7 +11,7 @@ use warnings;
 use DateTime;
 use Geo::Sun;
 my $gs=Geo::Sun->new;
-my $point=$gs->point_dt(DateTime->now);
+my $point=$gs->point;
 printf "Time: %s, Latitude: %s, Longitude: %s\n",
          DateTime->from_epoch(epoch=>$point->time)->datetime,
          $point->lat, $point->lon;

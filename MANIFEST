@@ -1,5 +1,6 @@
 Changes
 lib/Geo/Sun.pm
+lib/Geo/Sun/Bearing.pm
 LICENSE
 Makefile.PL
 MANIFEST

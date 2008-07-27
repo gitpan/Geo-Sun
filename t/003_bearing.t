@@ -2,12 +2,12 @@
 use Test::More tests => 15;
 use Test::Number::Delta relative => 1e-4;
 
-BEGIN { use_ok( 'Geo::Sun' ); }
+BEGIN { use_ok( 'Geo::Sun::Bearing' ); }
 BEGIN { use_ok( 'DateTime' ); }
 BEGIN { use_ok( 'GPS::Point' ); }
 
-my $gs = Geo::Sun->new;
-isa_ok($gs, 'Geo::Sun');
+my $gs = Geo::Sun::Bearing->new;
+isa_ok($gs, 'Geo::Sun::Bearing');
 
 my $spring=DateTime->new( year   => 2008,
                           month  => 3,
